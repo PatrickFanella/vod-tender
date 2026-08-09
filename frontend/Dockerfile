@@ -34,7 +34,7 @@ RUN --mount=type=cache,target=/app/node_modules/.vite \
 
 # --- Runtime stage ---
 # Pin nginx with digest for reproducible builds
-FROM nginx:1.29-alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS runtime
+FROM nginx:1.31-alpine@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752 AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 
