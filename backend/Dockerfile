@@ -54,18 +54,14 @@ RUN set -eux; \
 	rm -rf /tmp/ffmpeg* /var/lib/apt/lists/*
 
 # --- Runtime stage ---
-# Pin debian with digest for reproducible builds
-FROM debian:bookworm-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS runtime
+# Static Go and media binaries allow a minimal Python runtime.
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS runtime
 WORKDIR /app
 
 # Only install minimal runtime deps (ca-certificates for HTTPS, python3 for yt-dlp)
 # Static ffmpeg from media stage eliminates need for libav* packages (~400MB savings)
-RUN set -eux; \
-	apt-get update; \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-	ca-certificates python3; \
-	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends; \
-	rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates python3 \
+ && apk upgrade --no-cache
 
 # Copy binaries from build stage
 COPY --from=builder /out/vod-tender-backend ./vod-tender-backend
