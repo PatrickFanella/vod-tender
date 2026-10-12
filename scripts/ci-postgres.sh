@@ -28,6 +28,12 @@ case "${1:-}" in
       printf '%s=postgres://vod_test:vod_test@127.0.0.1:%s/vod_test?sslmode=disable\n' "$key" "$pg_port" >> "$GITHUB_ENV"
     done
     ;;
+  seed-e2e)
+    owner=$(docker inspect -f '{{index .Config.Labels "vod.ci-owner"}}' "$PG_CONTAINER")
+    test "$owner" = "$PG_CONTAINER"
+    docker exec -i "$PG_CONTAINER" psql --no-psqlrc -v ON_ERROR_STOP=1 -U vod_test -d vod_test \
+      < "$(dirname "${BASH_SOURCE[0]}")/ci-e2e-fixtures.sql"
+    ;;
   stop)
     if docker inspect "$PG_CONTAINER" >/dev/null 2>&1; then
       owner=$(docker inspect -f '{{index .Config.Labels "vod.ci-owner"}}' "$PG_CONTAINER")
@@ -35,5 +41,5 @@ case "${1:-}" in
       docker rm -f "$PG_CONTAINER"
     fi
     ;;
-  *) echo 'Usage: ci-postgres.sh start|stop' >&2; exit 2 ;;
+  *) echo 'Usage: ci-postgres.sh start|seed-e2e|stop' >&2; exit 2 ;;
 esac

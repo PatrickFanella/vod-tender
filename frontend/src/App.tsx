@@ -38,7 +38,7 @@ function App() {
         </div>
       </main>
       <footer
-        className="py-4 text-xs text-center text-gray-400"
+        className="py-4 text-xs text-center text-gray-600"
         role="contentinfo"
       >
         &copy; {new Date().getFullYear()} VOD Tender

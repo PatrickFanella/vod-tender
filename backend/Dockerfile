@@ -27,6 +27,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # Fetch yt-dlp and static ffmpeg (saves ~400MB vs apt package)
 FROM debian:bookworm-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS media
+ARG TARGETARCH
 RUN set -eux; \
 	apt-get update; \
 	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -40,13 +41,16 @@ RUN set -eux; \
 	# Download static ffmpeg from John Van Sickle (pinned version for reproducibility)
 	# Note: John Van Sickle builds don't provide separate checksum files, but pinning version ensures reproducibility
 	FFMPEG_VERSION=7.0.2; \
-	FFMPEG_TARBALL="ffmpeg-${FFMPEG_VERSION}-amd64-static.tar.xz"; \
+	case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported media architecture: $TARGETARCH" >&2; exit 1 ;; esac; \
+	FFMPEG_TARBALL="ffmpeg-${FFMPEG_VERSION}-${TARGETARCH}-static.tar.xz"; \
 	FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/${FFMPEG_TARBALL}"; \
-	curl -L "$FFMPEG_URL" -o /tmp/${FFMPEG_TARBALL}; \
+	curl -fL "$FFMPEG_URL" -o /tmp/${FFMPEG_TARBALL}; \
 	tar xf /tmp/${FFMPEG_TARBALL} -C /tmp; \
-	mv /tmp/ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ffmpeg; \
-	mv /tmp/ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ffprobe; \
+	mv /tmp/ffmpeg-*-${TARGETARCH}-static/ffmpeg /usr/local/bin/ffmpeg; \
+	mv /tmp/ffmpeg-*-${TARGETARCH}-static/ffprobe /usr/local/bin/ffprobe; \
 	chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe; \
+	ffmpeg -version >/dev/null; \
+	ffprobe -version >/dev/null; \
 	rm -rf /tmp/ffmpeg* /var/lib/apt/lists/*
 
 # --- Runtime stage ---
@@ -60,6 +64,7 @@ RUN set -eux; \
 	apt-get update; \
 	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 	ca-certificates python3; \
+	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends; \
 	rm -rf /var/lib/apt/lists/*
 
 # Copy binaries from build stage

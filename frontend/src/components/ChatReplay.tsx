@@ -239,14 +239,14 @@ export default function ChatReplay({ vodId }: ChatReplayProps) {
               </span>
               {/* Message with emotes */}
               <span>{renderEmotes(msg.message, emotes)}</span>
-              <span className="ml-auto text-xs text-gray-400">
+              <span className="ml-auto text-xs text-gray-600">
                 {msg.rel_timestamp.toFixed(1)}s
               </span>
             </div>
           )
         })}
         {live && (
-          <div className="text-xs text-gray-400" role="status">
+          <div className="text-xs text-gray-600" role="status">
             [live]
           </div>
         )}

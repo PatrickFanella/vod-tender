@@ -163,7 +163,7 @@ export default function VodDetail({ vodId, onBack }: VodDetailProps) {
       </div>
       <div className="mb-4">
         {vod.processed ? (
-          <span className="text-green-600">Processed</span>
+          <span className="text-green-700">Processed</span>
         ) : (
           <span className="text-yellow-700">Pending</span>
         )}

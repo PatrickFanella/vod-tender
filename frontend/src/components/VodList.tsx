@@ -172,7 +172,7 @@ export default function VodList({ onVodSelect }: VodListProps) {
                 </td>
                 <td className="px-4 py-2">
                   {vod.processed ? (
-                    <span className="text-green-600">Processed</span>
+                    <span className="text-green-700">Processed</span>
                   ) : (
                     <span className="text-yellow-700">Pending</span>
                   )}

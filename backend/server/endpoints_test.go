@@ -362,3 +362,36 @@ func TestDerivePercent(t *testing.T) {
 func ptrFloat64(f float64) *float64 {
 	return &f
 }
+
+func TestChatEndpointWithNullableMetadata(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	handler := NewMux(context.Background(), db)
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO vods (twitch_vod_id, title) VALUES ('nullable-chat', 'Nullable metadata')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp) VALUES ('nullable-chat', 'testuser', 'Hello', NOW(), 5)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/vods/nullable-chat/chat?from=0", "/vods/nullable-chat/chat?from=0&to=10"} {
+		t.Run(path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil))
+			if response.Code != http.StatusOK {
+				t.Fatalf("chat status = %d, body = %s", response.Code, response.Body.String())
+			}
+			var messages []struct {
+				Username string `json:"username"`
+				Message  string `json:"message"`
+				Badges   string `json:"badges"`
+				Emotes   string `json:"emotes"`
+				Color    string `json:"color"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&messages); err != nil {
+				t.Fatal(err)
+			}
+			if len(messages) != 1 || messages[0].Username != "testuser" || messages[0].Message != "Hello" || messages[0].Badges != "" || messages[0].Emotes != "" || messages[0].Color != "" {
+				t.Fatalf("unexpected chat response: %+v", messages)
+			}
+		})
+	}
+}

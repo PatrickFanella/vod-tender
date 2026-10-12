@@ -11,7 +11,9 @@ test.describe('VOD Detail Page', () => {
     await expect(page.getByText(/back to list/i)).toBeVisible()
 
     // Check VOD title
-    await expect(page.getByRole('heading', { name: /test vod 1/i })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: /test vod 1/i })
+    ).toBeVisible()
 
     // Check status
     await expect(page.getByText('Processed')).toBeVisible()
@@ -35,7 +37,9 @@ test.describe('VOD Detail Page', () => {
     await page.getByText(/test vod 1/i).click()
 
     // Check for YouTube link
-    const youtubeLink = page.getByRole('link', { name: /watch on youtube/i })
+    const youtubeLink = page.getByRole('link', {
+      name: 'Watch Test VOD 1 on YouTube',
+    })
     await expect(youtubeLink).toBeVisible()
     await expect(youtubeLink).toHaveAttribute('target', '_blank')
   })
@@ -51,7 +55,9 @@ test.describe('VOD Detail Page', () => {
     await page.getByText(/back to list/i).click()
 
     // Should be back at list
-    await expect(page.getByRole('heading', { name: /twitch vods/i })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: /twitch vods/i })
+    ).toBeVisible()
   })
 
   test('displays chat replay section', async ({ page }) => {

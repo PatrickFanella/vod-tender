@@ -259,6 +259,9 @@ jobs:
               run: |
                   timeout 30 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 1; done'
 
+            - name: Seed browser fixtures into the job-owned database
+              run: bash scripts/ci-postgres.sh seed-e2e
+
             - name: Run E2E tests
               working-directory: frontend
               env:
@@ -311,8 +314,8 @@ jobs:
                   platforms: linux/amd64
                   push: false
                   tags: vod-tender-backend:${{ github.sha }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: ${{ github.server_url == 'https://github.com' && 'type=gha' || '' }}
+                  cache-to: ${{ github.server_url == 'https://github.com' && 'type=gha,mode=max' || '' }}
                   load: true
 
             - name: Build frontend Docker image
@@ -322,8 +325,8 @@ jobs:
                   platforms: linux/amd64
                   push: false
                   tags: vod-tender-frontend:${{ github.sha }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: ${{ github.server_url == 'https://github.com' && 'type=gha' || '' }}
+                  cache-to: ${{ github.server_url == 'https://github.com' && 'type=gha,mode=max' || '' }}
                   load: true
 
             - name: Run Trivy vulnerability scanner on backend
@@ -406,8 +409,8 @@ jobs:
                   platforms: linux/arm64
                   push: false
                   tags: vod-tender-backend-multiarch:${{ github.sha }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: ${{ github.server_url == 'https://github.com' && 'type=gha' || '' }}
+                  cache-to: ${{ github.server_url == 'https://github.com' && 'type=gha,mode=max' || '' }}
 
             - name: Build frontend multi-arch (verification only)
               uses: docker/build-push-action@v5
@@ -416,8 +419,8 @@ jobs:
                   platforms: linux/arm64
                   push: false
                   tags: vod-tender-frontend-multiarch:${{ github.sha }}
-                  cache-from: type=gha
-                  cache-to: type=gha,mode=max
+                  cache-from: ${{ github.server_url == 'https://github.com' && 'type=gha' || '' }}
+                  cache-to: ${{ github.server_url == 'https://github.com' && 'type=gha,mode=max' || '' }}
 
     database-migration-tests:
         timeout-minutes: 30
