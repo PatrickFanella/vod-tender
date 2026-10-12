@@ -15,3 +15,19 @@ useDefault = true
 #   regexes = [
 #     '''example-pattern-to-ignore''',
 #   ]
+
+# Historical test fixture: this decodes to the public 29-byte example key.
+[[allowlists]]
+description = "Known dummy encryption key in test history"
+condition = "AND"
+paths = ['''^(backend/(db/encryption_test|cmd/migrate-tokens/main_test)\.go|docs/CONFIG\.md|SECURITY\.md)$''']
+regexTarget = "secret"
+regexes = ['''^(dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo=?|test-encryption-key-32-bytes)$''']
+
+# Documentation examples only; do not suppress other credentials in these files.
+[[allowlists]]
+description = "Public example credentials in authentication documentation"
+condition = "AND"
+paths = ['''^docs/(CONFIG|DOWNLOAD_SCHEDULER_USAGE|SECURITY)\.md$''']
+regexTarget = "match"
+regexes = ['''admin:secret123|Basic YWRtaW46c2VjcmV0MTIz|X-Admin-Token: abc123xyz''']

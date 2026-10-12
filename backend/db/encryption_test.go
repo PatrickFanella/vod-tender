@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"os"
 	"sync"
 	"testing"
@@ -35,8 +36,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 // TestEncryptedTokens tests the full encryption/decryption flow with database operations
 func TestEncryptedTokens(t *testing.T) {
-	// Generate a test encryption key
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo=" // base64 encoded "test-encryption-key-32-bytes\n"
+	// Encode a deterministic 32-byte test fixture for AES-256.
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 
 	// Save original ENCRYPTION_KEY and restore after test
 	origKey := os.Getenv("ENCRYPTION_KEY")
@@ -253,7 +254,7 @@ func TestEncryptionMigration(t *testing.T) {
 	}
 
 	// Step 2: Enable encryption and re-upsert (simulates migration on next token refresh)
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	os.Setenv("ENCRYPTION_KEY", testKey)
 	encryptorOnce = sync.Once{}
 	encryptor = nil
