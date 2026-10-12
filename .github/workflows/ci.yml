@@ -10,9 +10,12 @@ concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-    backend:
     gitleaks:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -31,6 +34,7 @@ jobs:
               # Fails on any secret findings. Use .gitleaks.toml for baseline suppressions.
 
     govulncheck:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -53,6 +57,7 @@ jobs:
               # Fails on any known vulnerabilities affecting this code. Go vuln DB is curated for exploitable vulns.
 
     build-test-lint:
+        timeout-minutes: 60
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -77,9 +82,6 @@ jobs:
 
             - name: Build
               run: make build-backend
-
-            - name: Test
-              run: make test-backend
 
             - name: Test with coverage
               working-directory: backend
@@ -110,15 +112,22 @@ jobs:
                       echo "✅ Coverage ${COVERAGE}% meets ${THRESHOLD}% threshold"
                   fi
 
+            - name: Retain full-suite coverage report
+              working-directory: backend
+              run: go tool cover -func=coverage.out | tee coverage.txt
+
+            - name: Upload backend coverage report
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
+              with:
+                  name: coverage-report
+                  path: |
+                      backend/coverage.out
+                      backend/coverage.txt
+                  retention-days: 30
+
             - name: Vet
               working-directory: backend
               run: go vet ./...
-
-            - name: govulncheck
-              working-directory: backend
-              run: |
-                  go install golang.org/x/vuln/cmd/govulncheck@latest
-                  $(go env GOPATH)/bin/govulncheck ./...
 
             - name: Install golangci-lint
               run: |
@@ -127,10 +136,8 @@ jobs:
             - name: Lint
               run: make lint-backend
 
-            - name: Docker build
-              run: docker build -t vod-tender ./backend
-
     frontend:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -168,7 +175,7 @@ jobs:
                   fail_ci_if_error: false
 
             - name: Upload coverage artifacts
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               if: always()
               with:
                   name: frontend-coverage
@@ -190,22 +197,11 @@ jobs:
                   fi
 
     frontend-e2e:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         needs: [frontend]
-        services:
-            postgres:
-                image: postgres:16
-                env:
-                    POSTGRES_DB: vod_test
-                    POSTGRES_USER: vod_test
-                    POSTGRES_PASSWORD: vod_test
-                options: >-
-                    --health-cmd pg_isready
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
-                ports:
-                    - 5432:5432
+        env:
+            PG_CONTAINER: vod-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -234,6 +230,9 @@ jobs:
               working-directory: frontend
               run: npx playwright install --with-deps chromium
 
+            - name: Start a job-owned disposable database
+              run: bash scripts/ci-postgres.sh start
+
             - name: Build backend
               working-directory: backend
               run: go build -o vod-tender .
@@ -241,7 +240,6 @@ jobs:
             - name: Start backend server
               working-directory: backend
               env:
-                  DB_DSN: postgres://vod_test:vod_test@localhost:5432/vod_test?sslmode=disable
                   HTTP_ADDR: ':8080'
                   LOG_LEVEL: info
               run: |
@@ -261,7 +259,7 @@ jobs:
               run: npx playwright test --project=chromium
 
             - name: Upload Playwright report
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               if: always()
               with:
                   name: playwright-report
@@ -269,7 +267,7 @@ jobs:
                   retention-days: 30
 
             - name: Upload Playwright test results
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               if: always()
               with:
                   name: playwright-test-results
@@ -283,7 +281,12 @@ jobs:
                     kill $(cat backend/backend.pid) || true
                   fi
 
+            - name: Remove the job-owned disposable database
+              if: always()
+              run: bash scripts/ci-postgres.sh stop
+
     docker-images:
+        timeout-minutes: 60
         runs-on: ubuntu-latest
         needs: [build-test-lint, frontend, frontend-e2e]
         steps:
@@ -326,7 +329,7 @@ jobs:
 
             - name: Upload backend Trivy results to GitHub Security
               uses: github/codeql-action/upload-sarif@v4
-              if: always()
+              if: always() && github.server_url == 'https://github.com'
               with:
                   sarif_file: 'trivy-backend-results.sarif'
                   category: 'trivy-backend'
@@ -351,7 +354,7 @@ jobs:
 
             - name: Upload frontend Trivy results to GitHub Security
               uses: github/codeql-action/upload-sarif@v4
-              if: always()
+              if: always() && github.server_url == 'https://github.com'
               with:
                   sarif_file: 'trivy-frontend-results.sarif'
                   category: 'trivy-frontend'
@@ -366,7 +369,7 @@ jobs:
                   severity: 'CRITICAL,HIGH,MEDIUM,LOW'
 
             - name: Upload Trivy scan reports
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               if: always()
               with:
                   name: trivy-reports
@@ -378,6 +381,7 @@ jobs:
                   retention-days: 30
 
     multi-arch-builds:
+        timeout-minutes: 60
         runs-on: ubuntu-latest
         needs: [build-test-lint, frontend]
         steps:
@@ -391,7 +395,7 @@ jobs:
               uses: docker/build-push-action@v5
               with:
                   context: ./backend
-                  platforms: linux/amd64,linux/arm64
+                  platforms: linux/arm64
                   push: false
                   tags: vod-tender-backend-multiarch:${{ github.sha }}
                   cache-from: type=gha
@@ -401,31 +405,23 @@ jobs:
               uses: docker/build-push-action@v5
               with:
                   context: ./frontend
-                  platforms: linux/amd64,linux/arm64
+                  platforms: linux/arm64
                   push: false
                   tags: vod-tender-frontend-multiarch:${{ github.sha }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max
 
     database-migration-tests:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
-        services:
-            postgres:
-                image: postgres:16
-                env:
-                    POSTGRES_DB: vod_test
-                    POSTGRES_USER: vod_test
-                    POSTGRES_PASSWORD: vod_test
-                options: >-
-                    --health-cmd pg_isready
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
-                ports:
-                    - 5432:5432
+        env:
+            PG_CONTAINER: vod-ci-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         steps:
             - name: Checkout
               uses: actions/checkout@v5
+
+            - name: Start a job-owned disposable database
+              run: bash scripts/ci-postgres.sh start
 
             - name: Setup Go
               uses: actions/setup-go@v6
@@ -436,88 +432,46 @@ jobs:
 
             - name: Run migration tests
               working-directory: backend
-              env:
-                  TEST_PG_DSN: postgres://vod_test:vod_test@localhost:5432/vod_test?sslmode=disable
               run: go test ./db -v
 
             - name: Verify schema integrity
               run: |
-                  PGPASSWORD=vod_test psql -h localhost -U vod_test -d vod_test -c "\dt" || true
+                  docker exec "$PG_CONTAINER" psql -U vod_test -d vod_test -c "\dt"
+
+            - name: Remove the job-owned disposable database
+              if: always()
+              run: bash scripts/ci-postgres.sh stop
 
     integration-tests:
         runs-on: ubuntu-latest
+        timeout-minutes: 60
+        env:
+            COMPOSE_PROJECT_NAME: vod-ci-${{ github.run_id }}-${{ github.run_attempt }}-integration
+            COMPOSE_FILE: .ci-compose.json
         steps:
             - name: Checkout
               uses: actions/checkout@v5
-
-            - name: Create docker network
-              run: docker network create web || true
-
-            - name: Create test environment file
+            - name: Generate isolated test infrastructure
               run: |
-                  cat > .env << EOF
-                  STACK_NAME=ci-test
-                  WEB_NETWORK=web
-                  TWITCH_CHANNEL=test-channel
-                  API_PORT=8080
-                  FRONTEND_PORT=8081
-                  DB_NAME=vod
-                  DB_USER=vod
-                  DB_PASSWORD=vod
-                  DB_HOST=postgres
-                  BACKEND_ENV_FILE=./backend/.env.example
-                  EOF
-
-            - name: Create backend env file
+                  set -euo pipefail
+                  printf 'LOG_LEVEL=info\nLOG_FORMAT=text\nHTTP_ADDR=:8080\n' > backend/.env
+                  docker compose -f docker-compose.yml config --format json | python3 scripts/ci-compose.py > .ci-compose.json
+                  docker compose config --quiet
+            - name: Start and health-check the isolated stack
+              run: docker compose up -d --build --wait --wait-timeout 180
+              timeout-minutes: 15
+            - name: Exercise API and frontend from their private network
               run: |
-                  mkdir -p backend
-                  cat > backend/.env << EOF
-                  LOG_LEVEL=info
-                  LOG_FORMAT=text
-                  HTTP_ADDR=:8080
-                  EOF
-
-            - name: Start stack
-              run: docker compose up -d --build
-              timeout-minutes: 10
-
-            - name: Wait for postgres to be healthy
-              run: |
-                  echo "Waiting for postgres to be healthy..."
-                  timeout 90 bash -c 'until docker compose ps postgres | grep -q "healthy"; do sleep 2; done'
-
-            - name: Wait for API to be healthy
-              run: |
-                  echo "Waiting for API to be healthy..."
-                  timeout 120 bash -c 'until docker compose ps api | grep -q "healthy"; do sleep 2; done'
-
-            - name: Wait for frontend to be healthy
-              run: |
-                  echo "Waiting for frontend to be healthy..."
-                  timeout 120 bash -c 'until docker compose ps frontend | grep -q "healthy"; do sleep 2; done'
-
-            - name: Show running services
-              run: docker compose ps
-
-            - name: Run smoke tests
-              run: |
-                  # Test API endpoints
-                  echo "Testing API health endpoint..."
-                  curl -f http://localhost:8080/healthz || exit 1
-
-                  echo "Testing API status endpoint..."
-                  curl -f http://localhost:8080/status || exit 1
-
-                  echo "Testing API metrics endpoint..."
-                  curl -f http://localhost:8080/metrics || exit 1
-
-                  echo "Testing frontend..."
-                  wget -q -O - http://localhost:8081/ > /dev/null || exit 1
-
-            - name: Show service logs on failure
+                  set -euo pipefail
+                  network="${COMPOSE_PROJECT_NAME}_web"
+                  for endpoint in healthz status metrics; do
+                    docker run --rm --network "$network" curlimages/curl:8.12.1 -fsS "http://api:8080/$endpoint"
+                  done
+                  docker run --rm --network "$network" curlimages/curl:8.12.1 -fsS http://frontend/ > /dev/null
+            - name: Show owned service logs on failure
               if: failure()
               run: docker compose logs
-
-            - name: Cleanup
+            - name: Remove only this run's infrastructure
               if: always()
-              run: docker compose down -v
+              run: |
+                  if [ -s .ci-compose.json ]; then docker compose down --volumes --remove-orphans; fi

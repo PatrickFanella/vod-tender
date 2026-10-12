@@ -6,8 +6,12 @@ on:
     push:
         branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
     benchmarks:
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -28,7 +32,7 @@ jobs:
                   go test -bench=. -benchmem -run=^$ ./... | tee benchmark-results.txt
 
             - name: Upload benchmark results
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               with:
                   name: benchmark-results
                   path: backend/benchmark-results.txt
@@ -81,7 +85,7 @@ jobs:
 
             - name: Upload benchmark baseline
               if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               with:
                   name: benchmark-baseline
                   path: backend/benchmark-baseline.txt
@@ -99,55 +103,9 @@ jobs:
                   else
                     echo "⚠️ No baseline found, skipping regression check"
                   fi
-    coverage:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v5
-
-            - name: Setup Go
-              uses: actions/setup-go@v6
-              with:
-                  go-version: "1.24.x"
-                  cache: true
-                  cache-dependency-path: backend/go.sum
-
-            - name: Run tests with coverage
-              working-directory: backend
-              run: |
-                  go test -coverprofile=coverage.out -covermode=atomic ./...
-                  go tool cover -func=coverage.out | tee coverage.txt
-
-            - name: Calculate coverage percentage
-              id: coverage
-              working-directory: backend
-              run: |
-                  COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-                  echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
-                  echo "Coverage: $COVERAGE%"
-
-            - name: Coverage report
-              run: |
-                  echo "## Test Coverage 📈" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  echo "- **Total Coverage:** ${{ steps.coverage.outputs.percentage }}%" >> $GITHUB_STEP_SUMMARY
-                  echo "" >> $GITHUB_STEP_SUMMARY
-                  if (( $(echo "${{ steps.coverage.outputs.percentage }} < 70" | bc -l) )); then
-                    echo "⚠️ Coverage is below 70% target" >> $GITHUB_STEP_SUMMARY
-                  else
-                    echo "✅ Coverage meets 70% target" >> $GITHUB_STEP_SUMMARY
-                  fi
-
-            - name: Upload coverage to artifact
-              uses: actions/upload-artifact@v4
-              with:
-                  name: coverage-report
-                  path: |
-                      backend/coverage.out
-                      backend/coverage.txt
-                  retention-days: 30
-
     security-scorecard:
+        if: github.server_url == 'https://github.com'
+        timeout-minutes: 30
         runs-on: ubuntu-latest
         permissions:
             security-events: write
@@ -185,7 +143,7 @@ jobs:
                   echo "2. Use a SARIF viewer or upload to https://sarifweb.azurewebsites.net/" >> $GITHUB_STEP_SUMMARY
 
             - name: Upload scorecard results
-              uses: actions/upload-artifact@v4
+              uses: https://gitea.com/actions/upload-artifact@c24449f33cd45d4826c6702db7e49f7cdb9b551d
               with:
                   name: ossf-scorecard-results
                   path: results.sarif
