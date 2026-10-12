@@ -121,7 +121,7 @@ func processOnce(ctx context.Context, dbc *sql.DB, channel string) error {
 	if dataDir == "" {
 		dataDir = "data"
 	}
-	if err := os.MkdirAll(dataDir, 0o750); err != nil {
+	if err := os.MkdirAll(dataDir, 0o750); err != nil { // #nosec G703 -- DATA_DIR is operator-owned configuration, not request input.
 		return fmt.Errorf("mkdir data dir: %w", err)
 	}
 	// Best-effort cleanup: prune stale partial/tmp files to keep /data small
@@ -140,7 +140,7 @@ func processOnce(ctx context.Context, dbc *sql.DB, channel string) error {
 				if strings.HasSuffix(name, ".part") || strings.HasSuffix(name, ".tmp") || strings.Contains(name, ".transcode.tmp.mp4") {
 					if fi, err := e.Info(); err == nil {
 						if now.Sub(fi.ModTime()) > maxAge {
-							_ = os.Remove(filepath.Join(dataDir, name))
+							_ = os.Remove(filepath.Join(dataDir, name)) // #nosec G703 -- Name comes from ReadDir within the operator-configured data directory.
 						}
 					}
 				}
@@ -184,7 +184,7 @@ func processOnce(ctx context.Context, dbc *sql.DB, channel string) error {
 						}
 						if fi, err := e.Info(); err == nil {
 							if fi.ModTime().Before(cutoff) {
-								if err := os.Remove(path); err == nil {
+								if err := os.Remove(path); err == nil { // #nosec G703 -- Path is DATA_DIR joined with a direct ReadDir entry name.
 									slog.Info("sweeper removed orphaned file", slog.String("path", path))
 								} else {
 									slog.Warn("sweeper failed to remove orphaned file", slog.String("path", path), slog.Any("err", err))
@@ -492,7 +492,7 @@ func processOnce(ctx context.Context, dbc *sql.DB, channel string) error {
 	isBackfill := date.Before(cutoff)
 	// New behavior: always try to remove local file after successful upload to save disk, while keeping legacy backfill flag for logs
 	if ytURL != "" && filePath != "" {
-		if err := os.Remove(filePath); err != nil {
+		if err := os.Remove(filePath); err != nil { // #nosec G703 -- The trusted downloader joins DATA_DIR with a VOD ID validated against path separators.
 			logger.Warn("delete local file failed", slog.String("path", filePath), slog.Any("err", err))
 		} else {
 			if isBackfill && backfillAutoclean {
@@ -624,4 +624,3 @@ func uploadToYouTube(ctx context.Context, dbc *sql.DB, path, title string, date 
 	}
 	return youtubeapi.UploadVideo(ctx, svc, path, finalTitle, description, "private")
 }
-

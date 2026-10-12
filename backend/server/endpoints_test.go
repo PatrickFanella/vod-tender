@@ -16,7 +16,7 @@ func TestCORS(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db) // NewMux now includes CORS config internally
 
-	req := httptest.NewRequest(http.MethodOptions, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/healthz", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 
@@ -46,7 +46,7 @@ func TestHealthzEndpoint(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db)
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -67,7 +67,7 @@ func TestMetricsEndpoint(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db)
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -91,7 +91,7 @@ func TestConfigEndpoint(t *testing.T) {
 	t.Setenv("TWITCH_CHANNEL", "test_channel")
 	t.Setenv("TWITCH_VOD_ID", "test_vod")
 
-	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -116,13 +116,13 @@ func TestVodsEndpoint(t *testing.T) {
 	handler := NewMux(context.Background(), db)
 
 	// Insert test VOD
-	_, err := db.Exec(`INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ('test123', 'Test VOD', NOW(), 3600, NOW())`)
 	if err != nil {
 		t.Fatalf("failed to insert test vod: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/vods", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/vods", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -158,13 +158,13 @@ func TestStatusEndpoint(t *testing.T) {
 	handler := NewMux(context.Background(), db)
 
 	// Insert sample EMA values for backward compatibility test
-	_, _ = db.Exec(`INSERT INTO kv (key, value, updated_at) VALUES 
+	_, _ = db.ExecContext(context.Background(), `INSERT INTO kv (key, value, updated_at) VALUES
 		('avg_download_ms', '300000', NOW()),
 		('avg_upload_ms', '120000', NOW()),
 		('avg_total_ms', '420000', NOW())
 		ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -279,7 +279,7 @@ func TestParseFloat64Query(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/test"+tt.query, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test"+tt.query, nil)
 			got := parseFloat64Query(req, tt.key, tt.def)
 			if got != tt.want {
 				t.Errorf("parseFloat64Query() = %v, want %v", got, tt.want)
@@ -321,7 +321,7 @@ func TestParseIntQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/test"+tt.query, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test"+tt.query, nil)
 			got := parseIntQuery(req, tt.key, tt.def)
 			if got != tt.want {
 				t.Errorf("parseIntQuery() = %v, want %v", got, tt.want)

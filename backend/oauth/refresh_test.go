@@ -14,7 +14,7 @@ func TestStartRefresherDefaults(t *testing.T) {
 
 	// Setup: insert a token that doesn't need refresh yet
 	futureExpiry := time.Now().Add(1 * time.Hour)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
 		"test-provider", "access123", "refresh456", futureExpiry, "scope1")
 	if err != nil {
@@ -47,7 +47,7 @@ func TestStartRefresherWithinWindow(t *testing.T) {
 
 	// Setup: insert a token that needs refresh (expires in 5 minutes, window is 15 minutes)
 	soonExpiry := time.Now().Add(5 * time.Minute)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
 		"test-provider", "old-access", "old-refresh", soonExpiry, "scope1")
 	if err != nil {
@@ -81,7 +81,7 @@ func TestStartRefresherWithinWindow(t *testing.T) {
 	// Verify token was updated in database
 	var access, refresh, scope string
 	var expiry time.Time
-	err = db.QueryRow(`SELECT access_token, refresh_token, expires_at, scope FROM oauth_tokens WHERE provider='test-provider'`).
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, refresh_token, expires_at, scope FROM oauth_tokens WHERE provider='test-provider'`).
 		Scan(&access, &refresh, &expiry, &scope)
 	if err != nil {
 		t.Fatalf("failed to query updated token: %v", err)
@@ -103,7 +103,7 @@ func TestStartRefresherRefreshError(t *testing.T) {
 
 	// Setup: insert a token that needs refresh
 	soonExpiry := time.Now().Add(5 * time.Minute)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
 		"test-provider", "old-access", "old-refresh", soonExpiry, "scope1")
 	if err != nil {
@@ -124,7 +124,7 @@ func TestStartRefresherRefreshError(t *testing.T) {
 
 	// Verify token was NOT updated (should remain old values)
 	var access string
-	err = db.QueryRow(`SELECT access_token FROM oauth_tokens WHERE provider='test-provider'`).Scan(&access)
+	err = db.QueryRowContext(context.Background(), `SELECT access_token FROM oauth_tokens WHERE provider='test-provider'`).Scan(&access)
 	if err != nil {
 		t.Fatalf("failed to query token: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestStartRefresherNoRefreshToken(t *testing.T) {
 
 	// Setup: insert a token without refresh token
 	soonExpiry := time.Now().Add(5 * time.Minute)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
 		"test-provider", "access123", "", soonExpiry, "scope1")
 	if err != nil {
@@ -173,7 +173,7 @@ func TestStartRefresherCancellation(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Start refresher
 	StartRefresher(ctx, db, "test-provider", 1*time.Second, 15*time.Minute, refreshFunc)
 
@@ -190,7 +190,7 @@ func TestStartRefresherPreservesRefreshToken(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 
 	soonExpiry := time.Now().Add(5 * time.Minute)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
 		"test-provider", "old-access", "original-refresh", soonExpiry, "scope1")
 	if err != nil {
@@ -211,7 +211,7 @@ func TestStartRefresherPreservesRefreshToken(t *testing.T) {
 	cancel()
 
 	var refresh, scope string
-	err = db.QueryRow(`SELECT refresh_token, scope FROM oauth_tokens WHERE provider='test-provider'`).
+	err = db.QueryRowContext(context.Background(), `SELECT refresh_token, scope FROM oauth_tokens WHERE provider='test-provider'`).
 		Scan(&refresh, &scope)
 	if err != nil {
 		t.Fatalf("failed to query token: %v", err)
@@ -234,7 +234,7 @@ func TestStartRefresherWithEncryption(t *testing.T) {
 
 	// Setup: insert a plaintext token that needs refresh (expires in 5 minutes)
 	soonExpiry := time.Now().Add(5 * time.Minute)
-	_, err := db.Exec(`INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, encryption_version, created_at, updated_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO oauth_tokens (provider, access_token, refresh_token, expires_at, scope, encryption_version, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
 		"test-encrypted", "plaintext-access", "plaintext-refresh", soonExpiry, "test:scope", 0)
 	if err != nil {
@@ -262,7 +262,7 @@ func TestStartRefresherWithEncryption(t *testing.T) {
 	// Verify token was updated
 	var storedAccess, storedRefresh string
 	var encVersion int
-	err = db.QueryRow(`SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, "test-encrypted").
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, "test-encrypted").
 		Scan(&storedAccess, &storedRefresh, &encVersion)
 	if err != nil {
 		t.Fatalf("failed to query updated token: %v", err)

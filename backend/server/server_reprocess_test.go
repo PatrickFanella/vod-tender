@@ -35,7 +35,7 @@ func TestReprocess(t *testing.T) {
 	}
 
 	handlers := NewHandlers(context.Background(), db)
-	req := httptest.NewRequest(http.MethodPost, "/vods/123/reprocess", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/vods/123/reprocess", nil)
 	rr := httptest.NewRecorder()
 	handlers.handleVodReprocess(rr, req, "123")
 	if rr.Code != http.StatusNoContent {

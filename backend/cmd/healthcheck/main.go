@@ -19,11 +19,11 @@ func main() {
 
 	client := &http.Client{Timeout: 3 * time.Second}
 	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil) // #nosec G704 -- Endpoint is operator-owned environment configuration, not request input.
 	if err != nil {
 		os.Exit(1)
 	}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- Operator-configured health checks intentionally support private service addresses.
 	if err != nil {
 		os.Exit(1)
 	}

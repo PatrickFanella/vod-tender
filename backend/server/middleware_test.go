@@ -94,7 +94,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 			}), cfg)
 
 			// Create request
-			req := httptest.NewRequest(http.MethodGet, "/admin/test", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin/test", nil)
 			if tt.reqUsername != "" || tt.reqPassword != "" {
 				req.SetBasicAuth(tt.reqUsername, tt.reqPassword)
 			}
@@ -214,7 +214,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 
 	// First 2 requests should succeed
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		req.RemoteAddr = "192.168.1.1:12345"
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
@@ -225,7 +225,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 	}
 
 	// 3rd request should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "192.168.1.1:12345"
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -254,7 +254,7 @@ func TestRateLimitMiddlewareWithXForwardedFor(t *testing.T) {
 
 	// Requests with X-Forwarded-For should use the rightmost (proxy-added) IP
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		req.RemoteAddr = "10.0.0.1:12345"                          // Direct connection IP
 		req.Header.Set("X-Forwarded-For", "203.0.113.1, 10.0.0.2") // Client IP, closest proxy IP
 		rr := httptest.NewRecorder()
@@ -266,7 +266,7 @@ func TestRateLimitMiddlewareWithXForwardedFor(t *testing.T) {
 	}
 
 	// 3rd request from same rightmost IP should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "10.0.0.1:12345"
 	req.Header.Set("X-Forwarded-For", "192.168.1.50, 10.0.0.2") // Different client, same proxy
 	rr := httptest.NewRecorder()
@@ -291,7 +291,7 @@ func TestRateLimitMiddlewareIPv6(t *testing.T) {
 
 	// Test IPv6 address with port
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		req.RemoteAddr = "[2001:db8::1]:12345"
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
@@ -302,7 +302,7 @@ func TestRateLimitMiddlewareIPv6(t *testing.T) {
 	}
 
 	// 3rd request should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "[2001:db8::1]:54321"
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -326,7 +326,7 @@ func TestRateLimitMiddlewareIPv6WithoutPort(t *testing.T) {
 
 	// Test IPv6 address without port (e.g., from X-Forwarded-For)
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		req.RemoteAddr = "127.0.0.1:8080" // Doesn't matter
 		req.Header.Set("X-Forwarded-For", "2001:db8::42")
 		rr := httptest.NewRecorder()
@@ -338,7 +338,7 @@ func TestRateLimitMiddlewareIPv6WithoutPort(t *testing.T) {
 	}
 
 	// 3rd request should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "127.0.0.1:8080"
 	req.Header.Set("X-Forwarded-For", "2001:db8::42")
 	rr := httptest.NewRecorder()
@@ -363,7 +363,7 @@ func TestRateLimitMiddlewareIPv4WithoutPort(t *testing.T) {
 
 	// Test IPv4 address without port (e.g., from X-Forwarded-For)
 	for i := 0; i < 2; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 		req.RemoteAddr = "10.0.0.1:8080" // Doesn't matter
 		req.Header.Set("X-Forwarded-For", "192.0.2.1")
 		rr := httptest.NewRecorder()
@@ -375,7 +375,7 @@ func TestRateLimitMiddlewareIPv4WithoutPort(t *testing.T) {
 	}
 
 	// 3rd request should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.RemoteAddr = "10.0.0.1:8080"
 	req.Header.Set("X-Forwarded-For", "192.0.2.1")
 	rr := httptest.NewRecorder()
@@ -445,7 +445,7 @@ func TestCORSConfig(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 			}), cfg)
 
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 			if tt.requestOrigin != "" {
 				req.Header.Set("Origin", tt.requestOrigin)
 			}
@@ -478,7 +478,7 @@ func TestCORSPreflightRequest(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}), cfg)
 
-	req := httptest.NewRequest(http.MethodOptions, "/test", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/test", nil)
 	req.Header.Set("Origin", "https://example.com")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1103,5 +1103,14 @@ func TestRateLimiterBackendConfiguration(t *testing.T) {
 				t.Errorf("expected backend %q, got %q", tt.expectedBackend, cfg.backend)
 			}
 		})
+	}
+}
+
+func TestPostgresRateLimiterRejectsMissingDependencies(t *testing.T) {
+	for _, cfg := range []*rateLimiterConfig{nil, {}} {
+		limiter, err := newPostgresRateLimiter(t.Context(), nil, cfg)
+		if err == nil || limiter != nil {
+			t.Fatalf("missing dependencies must fail without starting cleanup: limiter=%v, err=%v", limiter, err)
+		}
 	}
 }

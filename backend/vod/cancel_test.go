@@ -256,7 +256,7 @@ func TestCancelDBStateConsistency(t *testing.T) {
 	channel := "test-channel"
 
 	// Insert a test VOD
-	_, err = db.Exec(`INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, created_at)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, $2, $3, NOW(), 100, NOW())
 		ON CONFLICT (twitch_vod_id) DO NOTHING`, channel, testID, "Test VOD")
 	if err != nil {
@@ -264,7 +264,7 @@ func TestCancelDBStateConsistency(t *testing.T) {
 	}
 
 	// Set initial download state
-	_, err = db.Exec(`UPDATE vods SET download_state=$1, download_bytes=$2, download_total=$3, progress_updated_at=NOW()
+	_, err = db.ExecContext(context.Background(), `UPDATE vods SET download_state=$1, download_bytes=$2, download_total=$3, progress_updated_at=NOW()
 		WHERE twitch_vod_id=$4`, "downloading", 1000, 10000, testID)
 	if err != nil {
 		t.Fatal(err)
@@ -317,7 +317,7 @@ func TestCancelDBStateConsistency(t *testing.T) {
 	}
 
 	// Cleanup
-	_, _ = db.Exec(`DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
+	_, _ = db.ExecContext(context.Background(), `DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
 }
 
 // TestMultipleConcurrentCancels tests that concurrent cancel calls are safe

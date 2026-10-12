@@ -36,7 +36,7 @@ func TestHealthzOK(t *testing.T) {
 		}
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rr := httptest.NewRecorder()
 
 	h := NewMux(context.Background(), db)

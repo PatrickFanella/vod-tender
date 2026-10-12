@@ -27,7 +27,7 @@ func TestReadyzReady(t *testing.T) {
 		t.Fatalf("insert mock oauth token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rr := httptest.NewRecorder()
 
 	h := NewMux(context.Background(), db)
@@ -74,7 +74,7 @@ func TestReadyzNotReadyCircuitOpen(t *testing.T) {
 		t.Fatalf("set circuit state: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rr := httptest.NewRecorder()
 
 	h := NewMux(context.Background(), db)
@@ -113,7 +113,7 @@ func TestReadyzNotReadyMissingCredentials(t *testing.T) {
 
 	// Don't insert any OAuth tokens
 
-	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/readyz", nil)
 	rr := httptest.NewRecorder()
 
 	h := NewMux(context.Background(), db)

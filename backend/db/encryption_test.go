@@ -79,7 +79,7 @@ func TestEncryptedTokens(t *testing.T) {
 	// Test 2: Verify token is encrypted in database (ciphertext != plaintext)
 	var storedAccess, storedRefresh string
 	var encVersion int
-	err = db.QueryRow(`SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&storedAccess, &storedRefresh, &encVersion)
 	if err != nil {
 		t.Fatalf("Failed to query stored token: %v", err)
@@ -187,7 +187,7 @@ func TestPlaintextTokenCompatibility(t *testing.T) {
 	// Verify token is stored in plaintext
 	var storedAccess string
 	var encVersion int
-	err = db.QueryRow(`SELECT access_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&storedAccess, &encVersion)
 	if err != nil {
 		t.Fatalf("Failed to query stored token: %v", err)
@@ -245,7 +245,7 @@ func TestEncryptionMigration(t *testing.T) {
 
 	// Verify plaintext storage
 	var encVersion1 int
-	err = db.QueryRow(`SELECT encryption_version FROM oauth_tokens WHERE provider=$1`, provider).Scan(&encVersion1)
+	err = db.QueryRowContext(context.Background(), `SELECT encryption_version FROM oauth_tokens WHERE provider=$1`, provider).Scan(&encVersion1)
 	if err != nil {
 		t.Fatalf("Failed to query encryption_version: %v", err)
 	}
@@ -269,7 +269,7 @@ func TestEncryptionMigration(t *testing.T) {
 	// Verify encrypted storage
 	var encVersion2 int
 	var storedAccess string
-	err = db.QueryRow(`SELECT encryption_version, access_token FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT encryption_version, access_token FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&encVersion2, &storedAccess)
 	if err != nil {
 		t.Fatalf("Failed to query after migration: %v", err)

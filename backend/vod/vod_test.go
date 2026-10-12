@@ -87,3 +87,14 @@ func TestUploaderInterface(t *testing.T) {
 	// Verify we can create a mock uploader that implements the interface
 	var _ Uploader = (*mockUploaderTest)(nil) // Compile-time interface check
 }
+
+func TestDownloadVODRejectsPathSeparators(t *testing.T) {
+	for _, id := range []string{"", "../escape", `..\escape`, "subdir/file", `/absolute`} {
+		t.Run(id, func(t *testing.T) {
+			path, err := downloadVOD(t.Context(), nil, id, t.TempDir())
+			if err == nil || path != "" {
+				t.Fatalf("invalid VOD ID must fail before downloader startup: path=%q, err=%v", path, err)
+			}
+		})
+	}
+}

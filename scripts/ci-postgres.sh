@@ -15,10 +15,10 @@ case "${1:-}" in
     docker run -d --name "$PG_CONTAINER" --label "vod.ci-owner=$PG_CONTAINER" "${network_args[@]}" \
       -e POSTGRES_USER=vod_test -e POSTGRES_PASSWORD=vod_test -e POSTGRES_DB=vod_test postgres:16
     for _attempt in $(seq 1 60); do
-      if docker exec "$PG_CONTAINER" pg_isready -U vod_test -d vod_test; then break; fi
+      if docker exec "$PG_CONTAINER" pg_isready -h 127.0.0.1 -U vod_test -d vod_test; then break; fi
       sleep 1
     done
-    docker exec "$PG_CONTAINER" pg_isready -U vod_test -d vod_test
+    docker exec "$PG_CONTAINER" pg_isready -h 127.0.0.1 -U vod_test -d vod_test
     if [ -z "$pg_port" ]; then
       binding=$(docker port "$PG_CONTAINER" 5432/tcp)
       pg_port=${binding##*:}
