@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"os"
 	"sync"
 	"testing"
@@ -35,8 +36,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 // TestEncryptedTokens tests the full encryption/decryption flow with database operations
 func TestEncryptedTokens(t *testing.T) {
-	// Generate a test encryption key
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo=" // base64 encoded "test-encryption-key-32-bytes\n"
+	// Encode a deterministic 32-byte test fixture for AES-256.
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 
 	// Save original ENCRYPTION_KEY and restore after test
 	origKey := os.Getenv("ENCRYPTION_KEY")
@@ -78,7 +79,7 @@ func TestEncryptedTokens(t *testing.T) {
 	// Test 2: Verify token is encrypted in database (ciphertext != plaintext)
 	var storedAccess, storedRefresh string
 	var encVersion int
-	err = db.QueryRow(`SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, refresh_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&storedAccess, &storedRefresh, &encVersion)
 	if err != nil {
 		t.Fatalf("Failed to query stored token: %v", err)
@@ -186,7 +187,7 @@ func TestPlaintextTokenCompatibility(t *testing.T) {
 	// Verify token is stored in plaintext
 	var storedAccess string
 	var encVersion int
-	err = db.QueryRow(`SELECT access_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT access_token, encryption_version FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&storedAccess, &encVersion)
 	if err != nil {
 		t.Fatalf("Failed to query stored token: %v", err)
@@ -244,7 +245,7 @@ func TestEncryptionMigration(t *testing.T) {
 
 	// Verify plaintext storage
 	var encVersion1 int
-	err = db.QueryRow(`SELECT encryption_version FROM oauth_tokens WHERE provider=$1`, provider).Scan(&encVersion1)
+	err = db.QueryRowContext(context.Background(), `SELECT encryption_version FROM oauth_tokens WHERE provider=$1`, provider).Scan(&encVersion1)
 	if err != nil {
 		t.Fatalf("Failed to query encryption_version: %v", err)
 	}
@@ -253,7 +254,7 @@ func TestEncryptionMigration(t *testing.T) {
 	}
 
 	// Step 2: Enable encryption and re-upsert (simulates migration on next token refresh)
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	os.Setenv("ENCRYPTION_KEY", testKey)
 	encryptorOnce = sync.Once{}
 	encryptor = nil
@@ -268,7 +269,7 @@ func TestEncryptionMigration(t *testing.T) {
 	// Verify encrypted storage
 	var encVersion2 int
 	var storedAccess string
-	err = db.QueryRow(`SELECT encryption_version, access_token FROM oauth_tokens WHERE provider=$1`, provider).
+	err = db.QueryRowContext(context.Background(), `SELECT encryption_version, access_token FROM oauth_tokens WHERE provider=$1`, provider).
 		Scan(&encVersion2, &storedAccess)
 	if err != nil {
 		t.Fatalf("Failed to query after migration: %v", err)

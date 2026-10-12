@@ -91,6 +91,9 @@ func DiscoverAndUpsert(ctx context.Context, db *sql.DB, channel string) error {
 
 // downloadVOD uses yt-dlp to download a Twitch VOD by id.
 func downloadVOD(ctx context.Context, db *sql.DB, id, dataDir string) (string, error) {
+	if id == "" || strings.ContainsAny(id, `/\`) {
+		return "", fmt.Errorf("invalid VOD ID: must be a filename component")
+	}
 	// Stable output path so yt-dlp can resume (.part file) across restarts
 	out := filepath.Join(dataDir, fmt.Sprintf("twitch_%s.mp4", id))
 	url := "https://www.twitch.tv/videos/" + id
@@ -287,7 +290,7 @@ func downloadVOD(ctx context.Context, db *sql.DB, id, dataDir string) (string, e
 		if err == nil {
 			// Finalize progress to 100%; determine actual file size if available
 			actual := totalBytes
-			if fi, statErr := os.Stat(out); statErr == nil {
+			if fi, statErr := os.Stat(out); statErr == nil { // #nosec G703 -- DATA_DIR is operator configuration; the VOD ID cannot contain path separators.
 				actual = fi.Size()
 			}
 			_, _ = db.ExecContext(ctx, `UPDATE vods SET download_state=$1, download_total=$2, download_bytes=$3, downloaded_path=$4, progress_updated_at=NOW() WHERE twitch_vod_id=$5`, "complete", actual, actual, out, id)

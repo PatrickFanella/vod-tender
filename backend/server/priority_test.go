@@ -55,7 +55,7 @@ func TestAdminVodPriorityEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -93,7 +93,7 @@ func TestAdminVodPriorityEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -111,7 +111,7 @@ func TestAdminVodPriorityEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -129,7 +129,7 @@ func TestAdminVodPriorityEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/priority", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -198,7 +198,7 @@ func TestStatusEndpointEnhancements(t *testing.T) {
 
 	mux := NewMux(context.Background(), db)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	w := httptest.NewRecorder()
 
 	mux.ServeHTTP(w, req)

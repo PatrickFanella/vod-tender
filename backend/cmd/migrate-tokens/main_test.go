@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"os"
 	"testing"
 	"time"
@@ -59,7 +60,7 @@ func TestMigrateTokens_DryRun(t *testing.T) {
 	ctx := context.Background()
 
 	// Generate test encryption key
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
@@ -112,7 +113,7 @@ func TestMigrateTokens_RealMigration(t *testing.T) {
 	ctx := context.Background()
 
 	// Generate test encryption key
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
@@ -204,7 +205,7 @@ func TestMigrateTokens_ChannelFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// Generate test encryption key
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
@@ -255,7 +256,7 @@ func TestMigrateTokens_NoTokens(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
@@ -273,7 +274,7 @@ func TestMigrateTokens_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)
@@ -321,7 +322,7 @@ func TestMigrateToken_EmptyTokens(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
 
-	testKey := "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1ieXRlcwo="
+	testKey := base64.StdEncoding.EncodeToString(make([]byte, 32))
 	encryptor, err := crypto.NewAESEncryptor(testKey)
 	if err != nil {
 		t.Fatalf("failed to create encryptor: %v", err)

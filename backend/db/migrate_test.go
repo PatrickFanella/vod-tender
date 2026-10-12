@@ -35,7 +35,7 @@ func TestRunMigrations(t *testing.T) {
 	tables := []string{"vods", "chat_messages", "oauth_tokens", "kv"}
 	for _, table := range tables {
 		var exists bool
-		err := db.QueryRow(`SELECT EXISTS (
+		err := db.QueryRowContext(context.Background(), `SELECT EXISTS (
 			SELECT FROM information_schema.tables 
 			WHERE table_name = $1
 		)`, table).Scan(&exists)
@@ -127,7 +127,7 @@ func TestMigrationUpDown(t *testing.T) {
 
 	// Verify tables exist
 	var vodsExists bool
-	err = db.QueryRow(`SELECT EXISTS (
+	err = db.QueryRowContext(context.Background(), `SELECT EXISTS (
 		SELECT FROM information_schema.tables 
 		WHERE table_name = 'vods'
 	)`).Scan(&vodsExists)
@@ -168,7 +168,7 @@ func TestMigrationUpDown(t *testing.T) {
 	}
 
 	// Verify core tables still exist (should not be dropped by rolling back index migration)
-	err = db.QueryRow(`SELECT EXISTS (
+	err = db.QueryRowContext(context.Background(), `SELECT EXISTS (
 		SELECT FROM information_schema.tables 
 		WHERE table_name = 'vods'
 	)`).Scan(&vodsExists)
@@ -235,7 +235,7 @@ func TestMigrationDownAll(t *testing.T) {
 	tables := []string{"vods", "chat_messages", "oauth_tokens", "kv"}
 	for _, table := range tables {
 		var exists bool
-		err := db.QueryRow(`SELECT EXISTS (
+		err := db.QueryRowContext(context.Background(), `SELECT EXISTS (
 			SELECT FROM information_schema.tables 
 			WHERE table_name = $1
 		)`, table).Scan(&exists)

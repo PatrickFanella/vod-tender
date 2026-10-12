@@ -54,7 +54,7 @@ func TestAdminVodSkipUploadEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -78,7 +78,7 @@ func TestAdminVodSkipUploadEndpoint(t *testing.T) {
 		reqBody := map[string]any{"skip_upload": true}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
@@ -96,7 +96,7 @@ func TestAdminVodSkipUploadEndpoint(t *testing.T) {
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
-		req := httptest.NewRequest(http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/admin/vod/skip-upload", bytes.NewReader(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 

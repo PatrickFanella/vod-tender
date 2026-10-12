@@ -3,7 +3,7 @@
 
 # --- Build stage ---
 # Pin golang with digest for reproducible builds
-FROM golang:1.25@sha256:6bac879c5b77e0fc9c556a5ed8920e89dab1709bd510a854903509c828f67f96 AS builder
+FROM golang:1.26.9@sha256:d7722066f0b60ceccb6c0643cbed1f5f9e15506ac237146c95333504d7805d89 AS builder
 WORKDIR /app
 
 # No native deps needed (pure Go build with pgx)
@@ -27,6 +27,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 # Fetch yt-dlp and static ffmpeg (saves ~400MB vs apt package)
 FROM debian:bookworm-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS media
+ARG TARGETARCH
 RUN set -eux; \
 	apt-get update; \
 	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -40,27 +41,27 @@ RUN set -eux; \
 	# Download static ffmpeg from John Van Sickle (pinned version for reproducibility)
 	# Note: John Van Sickle builds don't provide separate checksum files, but pinning version ensures reproducibility
 	FFMPEG_VERSION=7.0.2; \
-	FFMPEG_TARBALL="ffmpeg-${FFMPEG_VERSION}-amd64-static.tar.xz"; \
+	case "$TARGETARCH" in amd64|arm64) ;; *) echo "Unsupported media architecture: $TARGETARCH" >&2; exit 1 ;; esac; \
+	FFMPEG_TARBALL="ffmpeg-${FFMPEG_VERSION}-${TARGETARCH}-static.tar.xz"; \
 	FFMPEG_URL="https://johnvansickle.com/ffmpeg/releases/${FFMPEG_TARBALL}"; \
-	curl -L "$FFMPEG_URL" -o /tmp/${FFMPEG_TARBALL}; \
+	curl -fL "$FFMPEG_URL" -o /tmp/${FFMPEG_TARBALL}; \
 	tar xf /tmp/${FFMPEG_TARBALL} -C /tmp; \
-	mv /tmp/ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ffmpeg; \
-	mv /tmp/ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ffprobe; \
+	mv /tmp/ffmpeg-*-${TARGETARCH}-static/ffmpeg /usr/local/bin/ffmpeg; \
+	mv /tmp/ffmpeg-*-${TARGETARCH}-static/ffprobe /usr/local/bin/ffprobe; \
 	chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe; \
+	ffmpeg -version >/dev/null; \
+	ffprobe -version >/dev/null; \
 	rm -rf /tmp/ffmpeg* /var/lib/apt/lists/*
 
 # --- Runtime stage ---
-# Pin debian with digest for reproducible builds
-FROM debian:bookworm-slim@sha256:78d2f66e0fec9e5a39fb2c72ea5e052b548df75602b5215ed01a17171529f706 AS runtime
+# Static Go and media binaries allow a minimal Python runtime.
+FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6 AS runtime
 WORKDIR /app
 
 # Only install minimal runtime deps (ca-certificates for HTTPS, python3 for yt-dlp)
 # Static ffmpeg from media stage eliminates need for libav* packages (~400MB savings)
-RUN set -eux; \
-	apt-get update; \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-	ca-certificates python3; \
-	rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ca-certificates python3 \
+ && apk upgrade --no-cache
 
 # Copy binaries from build stage
 COPY --from=builder /out/vod-tender-backend ./vod-tender-backend

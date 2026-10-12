@@ -37,16 +37,16 @@ func TestCancelIntegrationWithDB(t *testing.T) {
 	channel := "test-channel"
 
 	// Clean up any previous test data
-	_, _ = db.Exec(`DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
+	_, _ = db.ExecContext(context.Background(), `DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
 
 	// Insert a test VOD
-	_, err = db.Exec(`INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, created_at)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, $2, $3, NOW(), 100, NOW())`, channel, testID, "Test VOD for Cancel")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = db.Exec(`DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
+		_, _ = db.ExecContext(context.Background(), `DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
 	}()
 
 	// Create a mock downloader that simulates a long-running download
@@ -66,7 +66,7 @@ func TestCancelIntegrationWithDB(t *testing.T) {
 	downloadErr := make(chan error, 1)
 	go func() {
 		// Set download state to "downloading" before starting
-		_, _ = db.Exec(`UPDATE vods SET download_state=$1, download_bytes=$2, download_total=$3, progress_updated_at=NOW()
+		_, _ = db.ExecContext(context.Background(), `UPDATE vods SET download_state=$1, download_bytes=$2, download_total=$3, progress_updated_at=NOW()
 			WHERE twitch_vod_id=$4`, "downloading", 5000, 100000, testID)
 
 		_, err := mock.Download(ctx, db, testID, "/tmp")
@@ -86,7 +86,7 @@ func TestCancelIntegrationWithDB(t *testing.T) {
 	// Verify initial state
 	var downloadState string
 	var downloadBytes, downloadTotal int64
-	err = db.QueryRow(`SELECT COALESCE(download_state, ''), COALESCE(download_bytes, 0), COALESCE(download_total, 0)
+	err = db.QueryRowContext(context.Background(), `SELECT COALESCE(download_state, ''), COALESCE(download_bytes, 0), COALESCE(download_total, 0)
 		FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&downloadState, &downloadBytes, &downloadTotal)
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func TestCancelIntegrationWithDB(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify final state
-	err = db.QueryRow(`SELECT COALESCE(download_state, ''), COALESCE(download_bytes, 0), COALESCE(download_total, 0)
+	err = db.QueryRowContext(context.Background(), `SELECT COALESCE(download_state, ''), COALESCE(download_bytes, 0), COALESCE(download_total, 0)
 		FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&downloadState, &downloadBytes, &downloadTotal)
 	if err != nil {
 		t.Fatal(err)
@@ -179,17 +179,17 @@ func TestCancelDoesNotTripCircuitBreaker(t *testing.T) {
 	channel := "test-channel-circuit"
 
 	// Clean up any previous circuit breaker state
-	_, _ = db.Exec(`DELETE FROM kv WHERE channel=$1 AND key LIKE 'circuit%'`, channel)
+	_, _ = db.ExecContext(context.Background(), `DELETE FROM kv WHERE channel=$1 AND key LIKE 'circuit%'`, channel)
 
 	// Set circuit breaker to closed state
-	_, err = db.Exec(`INSERT INTO kv (channel, key, value, updated_at)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO kv (channel, key, value, updated_at)
 		VALUES ($1, 'circuit_state', 'closed', NOW())
 		ON CONFLICT(channel, key) DO UPDATE SET value='closed', updated_at=NOW()`, channel)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = db.Exec(`INSERT INTO kv (channel, key, value, updated_at)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO kv (channel, key, value, updated_at)
 		VALUES ($1, 'circuit_failures', '0', NOW())
 		ON CONFLICT(channel, key) DO UPDATE SET value='0', updated_at=NOW()`, channel)
 	if err != nil {
@@ -198,7 +198,7 @@ func TestCancelDoesNotTripCircuitBreaker(t *testing.T) {
 
 	// Verify initial circuit state is closed
 	var circuitState string
-	err = db.QueryRow(`SELECT value FROM kv WHERE channel=$1 AND key='circuit_state'`, channel).Scan(&circuitState)
+	err = db.QueryRowContext(context.Background(), `SELECT value FROM kv WHERE channel=$1 AND key='circuit_state'`, channel).Scan(&circuitState)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestCancelDoesNotTripCircuitBreaker(t *testing.T) {
 	}
 
 	// Verify circuit state is still closed
-	err = db.QueryRow(`SELECT value FROM kv WHERE channel=$1 AND key='circuit_state'`, channel).Scan(&circuitState)
+	err = db.QueryRowContext(context.Background(), `SELECT value FROM kv WHERE channel=$1 AND key='circuit_state'`, channel).Scan(&circuitState)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func TestCancelDoesNotTripCircuitBreaker(t *testing.T) {
 	}
 
 	// Cleanup
-	_, _ = db.Exec(`DELETE FROM kv WHERE channel=$1 AND key LIKE 'circuit%'`, channel)
+	_, _ = db.ExecContext(context.Background(), `DELETE FROM kv WHERE channel=$1 AND key LIKE 'circuit%'`, channel)
 }
 
 // TestCancelDoesNotIncrementRetries verifies that retry counter is not incremented on cancel
@@ -259,21 +259,21 @@ func TestCancelDoesNotIncrementRetries(t *testing.T) {
 	channel := "test-channel"
 
 	// Clean up any previous test data
-	_, _ = db.Exec(`DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
+	_, _ = db.ExecContext(context.Background(), `DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
 
 	// Insert a test VOD with an initial retry count
-	_, err = db.Exec(`INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, download_retries, created_at)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO vods (channel, twitch_vod_id, title, date, duration_seconds, download_retries, created_at)
 		VALUES ($1, $2, $3, NOW(), 100, 2, NOW())`, channel, testID, "Test VOD Retries")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = db.Exec(`DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
+		_, _ = db.ExecContext(context.Background(), `DELETE FROM vods WHERE twitch_vod_id=$1`, testID)
 	}()
 
 	// Verify initial retry count
 	var retriesBefore int
-	err = db.QueryRow(`SELECT download_retries FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&retriesBefore)
+	err = db.QueryRowContext(context.Background(), `SELECT download_retries FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&retriesBefore)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestCancelDoesNotIncrementRetries(t *testing.T) {
 	// Start the download
 	downloadErr := make(chan error, 1)
 	go func() {
-		_, _ = db.Exec(`UPDATE vods SET download_state='downloading' WHERE twitch_vod_id=$1`, testID)
+		_, _ = db.ExecContext(context.Background(), `UPDATE vods SET download_state='downloading' WHERE twitch_vod_id=$1`, testID)
 
 		_, err := mock.Download(ctx, db, testID, "/tmp")
 
@@ -323,7 +323,7 @@ func TestCancelDoesNotIncrementRetries(t *testing.T) {
 
 	// Verify retry count is unchanged
 	var retriesAfter int
-	err = db.QueryRow(`SELECT download_retries FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&retriesAfter)
+	err = db.QueryRowContext(context.Background(), `SELECT download_retries FROM vods WHERE twitch_vod_id=$1`, testID).Scan(&retriesAfter)
 	if err != nil {
 		t.Fatal(err)
 	}

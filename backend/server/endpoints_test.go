@@ -16,7 +16,7 @@ func TestCORS(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db) // NewMux now includes CORS config internally
 
-	req := httptest.NewRequest(http.MethodOptions, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodOptions, "/healthz", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	req.Header.Set("Access-Control-Request-Method", "GET")
 
@@ -46,7 +46,7 @@ func TestHealthzEndpoint(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db)
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -67,7 +67,7 @@ func TestMetricsEndpoint(t *testing.T) {
 	db := testutil.SetupTestDB(t)
 	handler := NewMux(context.Background(), db)
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -91,7 +91,7 @@ func TestConfigEndpoint(t *testing.T) {
 	t.Setenv("TWITCH_CHANNEL", "test_channel")
 	t.Setenv("TWITCH_VOD_ID", "test_vod")
 
-	req := httptest.NewRequest(http.MethodGet, "/config", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/config", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -116,13 +116,13 @@ func TestVodsEndpoint(t *testing.T) {
 	handler := NewMux(context.Background(), db)
 
 	// Insert test VOD
-	_, err := db.Exec(`INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ('test123', 'Test VOD', NOW(), 3600, NOW())`)
 	if err != nil {
 		t.Fatalf("failed to insert test vod: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/vods", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/vods", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -158,13 +158,13 @@ func TestStatusEndpoint(t *testing.T) {
 	handler := NewMux(context.Background(), db)
 
 	// Insert sample EMA values for backward compatibility test
-	_, _ = db.Exec(`INSERT INTO kv (key, value, updated_at) VALUES 
+	_, _ = db.ExecContext(context.Background(), `INSERT INTO kv (key, value, updated_at) VALUES
 		('avg_download_ms', '300000', NOW()),
 		('avg_upload_ms', '120000', NOW()),
 		('avg_total_ms', '420000', NOW())
 		ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()`)
 
-	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -279,7 +279,7 @@ func TestParseFloat64Query(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/test"+tt.query, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test"+tt.query, nil)
 			got := parseFloat64Query(req, tt.key, tt.def)
 			if got != tt.want {
 				t.Errorf("parseFloat64Query() = %v, want %v", got, tt.want)
@@ -321,7 +321,7 @@ func TestParseIntQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/test"+tt.query, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test"+tt.query, nil)
 			got := parseIntQuery(req, tt.key, tt.def)
 			if got != tt.want {
 				t.Errorf("parseIntQuery() = %v, want %v", got, tt.want)
@@ -361,4 +361,37 @@ func TestDerivePercent(t *testing.T) {
 
 func ptrFloat64(f float64) *float64 {
 	return &f
+}
+
+func TestChatEndpointWithNullableMetadata(t *testing.T) {
+	db := testutil.SetupTestDB(t)
+	handler := NewMux(context.Background(), db)
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO vods (twitch_vod_id, title) VALUES ('nullable-chat', 'Nullable metadata')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp) VALUES ('nullable-chat', 'testuser', 'Hello', NOW(), 5)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/vods/nullable-chat/chat?from=0", "/vods/nullable-chat/chat?from=0&to=10"} {
+		t.Run(path, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil))
+			if response.Code != http.StatusOK {
+				t.Fatalf("chat status = %d, body = %s", response.Code, response.Body.String())
+			}
+			var messages []struct {
+				Username string `json:"username"`
+				Message  string `json:"message"`
+				Badges   string `json:"badges"`
+				Emotes   string `json:"emotes"`
+				Color    string `json:"color"`
+			}
+			if err := json.NewDecoder(response.Body).Decode(&messages); err != nil {
+				t.Fatal(err)
+			}
+			if len(messages) != 1 || messages[0].Username != "testuser" || messages[0].Message != "Hello" || messages[0].Badges != "" || messages[0].Emotes != "" || messages[0].Color != "" {
+				t.Fatalf("unexpected chat response: %+v", messages)
+			}
+		})
+	}
 }

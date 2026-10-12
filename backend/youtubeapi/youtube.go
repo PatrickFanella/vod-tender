@@ -63,8 +63,7 @@ func (s *Service) Exchange(ctx context.Context, code string) (*oauth2.Token, err
 	if err != nil {
 		return nil, err
 	}
-	rawBytes, _ := json.Marshal(tok)
-	_ = s.db.UpsertOAuthToken(ctx, provider, tok.AccessToken, tok.RefreshToken, tok.Expiry, string(rawBytes))
+	_ = s.db.UpsertOAuthToken(ctx, provider, tok.AccessToken, tok.RefreshToken, tok.Expiry, "")
 	return tok, nil
 }
 
@@ -93,8 +92,7 @@ func (s *Service) refreshIfNeeded(ctx context.Context) (*oauth2.Token, error) {
 	if err != nil {
 		return &tok, err
 	}
-	rawBytes, _ := json.Marshal(newTok)
-	_ = s.db.UpsertOAuthToken(ctx, provider, newTok.AccessToken, newTok.RefreshToken, newTok.Expiry, string(rawBytes))
+	_ = s.db.UpsertOAuthToken(ctx, provider, newTok.AccessToken, newTok.RefreshToken, newTok.Expiry, "")
 	return newTok, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -243,6 +244,9 @@ type postgresRateLimiter struct {
 
 // newPostgresRateLimiter creates a new Postgres-backed rate limiter
 func newPostgresRateLimiter(ctx context.Context, db *sql.DB, cfg *rateLimiterConfig) (*postgresRateLimiter, error) {
+	if db == nil || cfg == nil {
+		return nil, fmt.Errorf("postgres rate limiter requires a database and configuration")
+	}
 	limiter := &postgresRateLimiter{
 		db:  db,
 		cfg: cfg,
@@ -300,7 +304,11 @@ func (rl *postgresRateLimiter) allow(ctx context.Context, ip string) bool {
 		// Fail open - allow request if DB is having issues
 		return true
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			slog.Warn("rate limit: rollback failed", slog.Any("error", err))
+		}
+	}()
 
 	// Acquire advisory lock for this IP to ensure atomicity across concurrent requests
 	// Using hashtext to convert IP string to integer for pg_advisory_xact_lock

@@ -32,7 +32,7 @@ func TestMigrate(t *testing.T) {
 	tables := []string{"vods", "chat_messages", "oauth_tokens", "kv"}
 	for _, table := range tables {
 		var exists bool
-		err := db.QueryRow(`SELECT EXISTS (
+		err := db.QueryRowContext(context.Background(), `SELECT EXISTS (
 			SELECT FROM information_schema.tables 
 			WHERE table_name = $1
 		)`, table).Scan(&exists)
@@ -228,7 +228,7 @@ func TestConnect(t *testing.T) {
 			t.Error("Connect() returned nil db")
 		}
 		// Test that connection actually works
-		if err := db.Ping(); err != nil {
+		if err := db.PingContext(context.Background()); err != nil {
 			t.Errorf("Ping() error = %v", err)
 		}
 		db.Close()

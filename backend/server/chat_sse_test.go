@@ -59,7 +59,7 @@ func TestChatSSE_SpeedAccuracy(t *testing.T) {
 	vodID := "test-vod-speed-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD for Speed', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -81,7 +81,7 @@ func TestChatSSE_SpeedAccuracy(t *testing.T) {
 
 	for _, msg := range messages {
 		absTime := baseTime.Add(time.Duration(msg.relTime) * time.Second)
-		_, err := db.Exec(`
+		_, err := db.ExecContext(context.Background(), `
 			INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp, badges, emotes, color)
 			VALUES ($1, $2, $3, $4, $5, '', '', '')
 		`, vodID, msg.username, msg.message, absTime, msg.relTime)
@@ -118,15 +118,15 @@ func TestChatSSE_SpeedAccuracy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=%.1f", vodID, tt.speed), nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=%.1f", vodID, tt.speed), nil)
 			w := newFlushableRecorder()
 
 			// Track when we see each message
 			startTime := time.Now()
-			
+
 			// Run handler (it will block until done)
 			handler.ServeHTTP(w, req)
-			
+
 			// Validate SSE headers
 			if ct := w.Header().Get("Content-Type"); ct != "text/event-stream" {
 				t.Errorf("expected Content-Type text/event-stream, got %s", ct)
@@ -135,7 +135,7 @@ func TestChatSSE_SpeedAccuracy(t *testing.T) {
 			// Parse body and extract messages with approximate timestamps
 			body := w.Body.String()
 			lines := strings.Split(body, "\n")
-			
+
 			messages := []string{}
 			for _, line := range lines {
 				if strings.HasPrefix(line, "data: ") {
@@ -152,12 +152,12 @@ func TestChatSSE_SpeedAccuracy(t *testing.T) {
 			// Sum of intervals: 0→100→200→300ms
 			const totalRealTimeMs = 300 // 3 intervals of 100ms each
 			// At 0.5x: 0.3s real time = 0.6s playback
-			// At 1x: 0.3s real time = 0.3s playback  
+			// At 1x: 0.3s real time = 0.3s playback
 			// At 2x: 0.3s real time = 0.15s playback
 			totalTime := time.Since(startTime)
-			expectedTime := time.Duration(float64(totalRealTimeMs)*float64(time.Millisecond) / tt.speed)
+			expectedTime := time.Duration(float64(totalRealTimeMs) * float64(time.Millisecond) / tt.speed)
 			tolerance := 200 * time.Millisecond
-			
+
 			diff := totalTime - expectedTime
 			if diff < 0 {
 				diff = -diff
@@ -184,7 +184,7 @@ func TestChatSSE_Backpressure(t *testing.T) {
 	vodID := "test-vod-backpressure-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD for Backpressure', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -197,7 +197,7 @@ func TestChatSSE_Backpressure(t *testing.T) {
 	for i := 0; i < messageCount; i++ {
 		absTime := baseTime.Add(time.Duration(i%100) * 10 * time.Millisecond)
 		relTime := float64(i%100) * 0.01
-		_, err := db.Exec(`
+		_, err := db.ExecContext(context.Background(), `
 			INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp, badges, emotes, color)
 			VALUES ($1, $2, $3, $4, $5, '', '', '')
 		`, vodID, fmt.Sprintf("user%d", i), fmt.Sprintf("message %d", i), absTime, relTime)
@@ -209,8 +209,8 @@ func TestChatSSE_Backpressure(t *testing.T) {
 	// Test at high speed to ensure backpressure handling
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=100", vodID), nil)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=100", vodID), nil)
 	req = req.WithContext(ctx)
 	w := newFlushableRecorder()
 
@@ -258,7 +258,7 @@ func TestChatSSE_CancellationHandling(t *testing.T) {
 	vodID := "test-vod-cancel-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD for Cancellation', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -270,7 +270,7 @@ func TestChatSSE_CancellationHandling(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		absTime := baseTime.Add(time.Duration(i) * 100 * time.Millisecond)
 		relTime := float64(i) * 0.1
-		_, err := db.Exec(`
+		_, err := db.ExecContext(context.Background(), `
 			INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp, badges, emotes, color)
 			VALUES ($1, $2, $3, $4, $5, '', '', '')
 		`, vodID, fmt.Sprintf("user%d", i), fmt.Sprintf("message %d", i), absTime, relTime)
@@ -283,7 +283,7 @@ func TestChatSSE_CancellationHandling(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=1", vodID), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=1", vodID), nil)
 	req = req.WithContext(ctx)
 	w := newFlushableRecorder()
 
@@ -314,7 +314,7 @@ monitorLoop:
 					newCount++
 				}
 			}
-			
+
 			if newCount > receivedCount {
 				receivedCount = newCount
 				if receivedCount >= 2 {
@@ -350,7 +350,7 @@ func TestChatSSE_SSEFormat(t *testing.T) {
 	vodID := "test-vod-format-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD for Format', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -359,7 +359,7 @@ func TestChatSSE_SSEFormat(t *testing.T) {
 	}
 
 	// Insert a single test message
-	_, err = db.Exec(`
+	_, err = db.ExecContext(context.Background(), `
 		INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp, badges, emotes, color)
 		VALUES ($1, 'testuser', 'test message', $2, 0.0, 'moderator:1', 'Kappa', '#FF0000')
 	`, vodID, baseTime)
@@ -367,7 +367,7 @@ func TestChatSSE_SSEFormat(t *testing.T) {
 		t.Fatalf("failed to insert chat message: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=10", vodID), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=10", vodID), nil)
 	w := newFlushableRecorder()
 
 	done := make(chan struct{})
@@ -442,7 +442,7 @@ func TestChatSSE_EmptyVOD(t *testing.T) {
 	vodID := "test-vod-empty-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD Empty', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -452,7 +452,7 @@ func TestChatSSE_EmptyVOD(t *testing.T) {
 
 	// Don't insert any chat messages
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream", vodID), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream", vodID), nil)
 	w := newFlushableRecorder()
 
 	done := make(chan struct{})
@@ -489,7 +489,7 @@ func TestChatSSE_InvalidSpeed(t *testing.T) {
 	vodID := "test-vod-speed-invalid-" + generateRandomID()
 	baseTime := time.Now().UTC()
 
-	_, err := db.Exec(`
+	_, err := db.ExecContext(context.Background(), `
 		INSERT INTO vods (twitch_vod_id, title, date, duration_seconds, created_at)
 		VALUES ($1, 'Test VOD', $2, 3600, $3)
 	`, vodID, baseTime, baseTime)
@@ -497,7 +497,7 @@ func TestChatSSE_InvalidSpeed(t *testing.T) {
 		t.Fatalf("failed to insert test vod: %v", err)
 	}
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(context.Background(), `
 		INSERT INTO chat_messages (vod_id, username, message, abs_timestamp, rel_timestamp, badges, emotes, color)
 		VALUES ($1, 'user1', 'test', $2, 0.0, '', '', '')
 	`, vodID, baseTime)
@@ -529,7 +529,7 @@ func TestChatSSE_InvalidSpeed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=%s", vodID, tt.speedParam), nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, fmt.Sprintf("/vods/%s/chat/stream?speed=%s", vodID, tt.speedParam), nil)
 			w := newFlushableRecorder()
 
 			done := make(chan struct{})

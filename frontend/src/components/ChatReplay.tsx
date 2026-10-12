@@ -141,15 +141,23 @@ export default function ChatReplay({ vodId }: ChatReplayProps) {
 
   return (
     <div className="bg-gray-100 rounded p-2 mt-6">
-      <div className="flex items-center gap-2 mb-2" role="toolbar" aria-label="Chat replay controls">
-        <span className="font-semibold" id="chat-replay-title">Chat Replay</span>
+      <div
+        className="flex items-center gap-2 mb-2"
+        role="toolbar"
+        aria-label="Chat replay controls"
+      >
+        <span className="font-semibold" id="chat-replay-title">
+          Chat Replay
+        </span>
         <button
           className={`px-2 py-1 rounded text-xs ${
             replay ? 'bg-indigo-600 text-white' : 'bg-white border'
           }`}
           onClick={() => setReplay((v: boolean) => !v)}
           aria-pressed={replay}
-          aria-label={replay ? 'Switch to static chat view' : 'Switch to live replay mode'}
+          aria-label={
+            replay ? 'Switch to static chat view' : 'Switch to live replay mode'
+          }
         >
           {replay ? 'Live' : 'Static'}
         </button>
@@ -231,14 +239,14 @@ export default function ChatReplay({ vodId }: ChatReplayProps) {
               </span>
               {/* Message with emotes */}
               <span>{renderEmotes(msg.message, emotes)}</span>
-              <span className="ml-auto text-xs text-gray-400">
+              <span className="ml-auto text-xs text-gray-600">
                 {msg.rel_timestamp.toFixed(1)}s
               </span>
             </div>
           )
         })}
         {live && (
-          <div className="text-xs text-gray-400" role="status">
+          <div className="text-xs text-gray-600" role="status">
             [live]
           </div>
         )}

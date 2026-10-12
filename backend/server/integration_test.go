@@ -66,7 +66,7 @@ func TestAdminEndpointsProtection(t *testing.T) {
 
 			handler := NewMux(context.Background(), db)
 
-			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, tt.path, nil)
 			if tt.basicAuth {
 				req.SetBasicAuth(tt.username, tt.password)
 			}
@@ -98,7 +98,7 @@ func TestRateLimitingOnAdminEndpoints(t *testing.T) {
 
 	// Make 3 requests (should all succeed)
 	for i := 1; i <= 3; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/admin/monitor", nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin/monitor", nil)
 		req.Header.Set("X-Admin-Token", "test-token")
 		req.RemoteAddr = "192.168.1.100:12345"
 		rr := httptest.NewRecorder()
@@ -110,7 +110,7 @@ func TestRateLimitingOnAdminEndpoints(t *testing.T) {
 	}
 
 	// 4th request should be rate limited
-	req := httptest.NewRequest(http.MethodGet, "/admin/monitor", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/admin/monitor", nil)
 	req.Header.Set("X-Admin-Token", "test-token")
 	req.RemoteAddr = "192.168.1.100:12345"
 	rr := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestCORSRestricted(t *testing.T) {
 
 			handler := NewMux(context.Background(), db)
 
-			req := httptest.NewRequest(http.MethodGet, "/status", nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/status", nil)
 			req.Header.Set("Origin", tt.requestOrigin)
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
@@ -216,7 +216,7 @@ func TestPublicEndpointsUnprotected(t *testing.T) {
 
 	for _, path := range publicEndpoints {
 		t.Run(path, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, path, nil)
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
@@ -240,10 +240,10 @@ func TestRateLimitingPathMatching(t *testing.T) {
 	handler := NewMux(context.Background(), db)
 
 	tests := []struct {
-		name                 string
-		path                 string
-		shouldBeRateLimited  bool
-		description          string
+		name                string
+		path                string
+		shouldBeRateLimited bool
+		description         string
 	}{
 		// Paths that SHOULD be rate limited
 		{
@@ -258,7 +258,7 @@ func TestRateLimitingPathMatching(t *testing.T) {
 			shouldBeRateLimited: true,
 			description:         "VOD reprocess endpoint should be rate limited",
 		},
-		
+
 		// Paths that should NOT be rate limited (the bug this fixes)
 		{
 			name:                "generic cancel path",
@@ -295,13 +295,13 @@ func TestRateLimitingPathMatching(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Make first request
-			req1 := httptest.NewRequest(http.MethodPost, tt.path, nil)
+			req1 := httptest.NewRequestWithContext(context.Background(), http.MethodPost, tt.path, nil)
 			req1.RemoteAddr = "192.168.1.100:12345"
 			rr1 := httptest.NewRecorder()
 			handler.ServeHTTP(rr1, req1)
 
 			// Make second request immediately (should hit rate limit if path is rate limited)
-			req2 := httptest.NewRequest(http.MethodPost, tt.path, nil)
+			req2 := httptest.NewRequestWithContext(context.Background(), http.MethodPost, tt.path, nil)
 			req2.RemoteAddr = "192.168.1.100:12345"
 			rr2 := httptest.NewRecorder()
 			handler.ServeHTTP(rr2, req2)

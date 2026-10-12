@@ -31,7 +31,7 @@ func TestCancelNoActive(t *testing.T) {
 	}
 
 	handlers := NewHandlers(context.Background(), db)
-	req := httptest.NewRequest(http.MethodPost, "/vods/abc/cancel", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/vods/abc/cancel", nil)
 	rr := httptest.NewRecorder()
 	handlers.handleVodCancel(rr, req, "abc")
 	if rr.Code != http.StatusNoContent {

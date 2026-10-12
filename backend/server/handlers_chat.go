@@ -25,9 +25,9 @@ func (h *Handlers) handleChatJSON(w http.ResponseWriter, r *http.Request, vodID 
 	var rows *sql.Rows
 	var err error
 	if to > 0 {
-		rows, err = h.db.QueryContext(r.Context(), `SELECT username, message, abs_timestamp, rel_timestamp, badges, emotes, color FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 AND rel_timestamp<=$3 ORDER BY rel_timestamp ASC LIMIT $4`, vodID, from, to, limit)
+		rows, err = h.db.QueryContext(r.Context(), `SELECT username, message, abs_timestamp, rel_timestamp, COALESCE(badges, ''), COALESCE(emotes, ''), COALESCE(color, '') FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 AND rel_timestamp<=$3 ORDER BY rel_timestamp ASC LIMIT $4`, vodID, from, to, limit)
 	} else {
-		rows, err = h.db.QueryContext(r.Context(), `SELECT username, message, abs_timestamp, rel_timestamp, badges, emotes, color FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 ORDER BY rel_timestamp ASC LIMIT $3`, vodID, from, limit)
+		rows, err = h.db.QueryContext(r.Context(), `SELECT username, message, abs_timestamp, rel_timestamp, COALESCE(badges, ''), COALESCE(emotes, ''), COALESCE(color, '') FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 ORDER BY rel_timestamp ASC LIMIT $3`, vodID, from, limit)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -73,7 +73,7 @@ func (h *Handlers) handleChatSSE(w http.ResponseWriter, r *http.Request, vodID s
 	}
 	from := parseFloat64Query(r, "from", 0)
 	speed := parseFloat64Query(r, "speed", 1.0)
-	
+
 	// Reject non-finite values and clamp speed to a reasonable range
 	if math.IsNaN(speed) || math.IsInf(speed, 0) || speed <= 0 || speed > 100 {
 		speed = 1.0
@@ -81,9 +81,9 @@ func (h *Handlers) handleChatSSE(w http.ResponseWriter, r *http.Request, vodID s
 	if math.IsNaN(from) || math.IsInf(from, 0) || from < 0 {
 		from = 0
 	}
-	
+
 	ctx := r.Context()
-	rows, err := h.db.QueryContext(ctx, `SELECT username, message, abs_timestamp, rel_timestamp, badges, emotes, color FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 ORDER BY rel_timestamp ASC`, vodID, from)
+	rows, err := h.db.QueryContext(ctx, `SELECT username, message, abs_timestamp, rel_timestamp, COALESCE(badges, ''), COALESCE(emotes, ''), COALESCE(color, '') FROM chat_messages WHERE vod_id=$1 AND rel_timestamp>=$2 ORDER BY rel_timestamp ASC`, vodID, from)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
