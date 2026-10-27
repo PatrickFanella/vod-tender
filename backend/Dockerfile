@@ -60,7 +60,8 @@ WORKDIR /app
 
 # Only install minimal runtime deps (ca-certificates for HTTPS, python3 for yt-dlp)
 # Static ffmpeg from media stage eliminates need for libav* packages (~400MB savings)
-RUN apk add --no-cache ca-certificates python3 \
+# Require the fixes for CVE-2026-77214 and CVE-2026-115557, even with cached base layers.
+RUN apk add --no-cache ca-certificates 'python3>=3.14.10-r0' 'libexpat>=2.9.0-r0' \
  && apk upgrade --no-cache
 
 # Copy binaries from build stage
