@@ -3,7 +3,7 @@
 
 # --- Build stage ---
 # Pin golang with digest for reproducible builds
-FROM golang:1.26.9@sha256:d7722066f0b60ceccb6c0643cbed1f5f9e15506ac237146c95333504d7805d89 AS builder
+FROM golang:1.26.10@sha256:24a707af49702fa44f02785475d02fb752f6982d3e9c0afb7696e1f0204e7ce9 AS builder
 WORKDIR /app
 
 # No native deps needed (pure Go build with pgx)
@@ -60,7 +60,8 @@ WORKDIR /app
 
 # Only install minimal runtime deps (ca-certificates for HTTPS, python3 for yt-dlp)
 # Static ffmpeg from media stage eliminates need for libav* packages (~400MB savings)
-RUN apk add --no-cache ca-certificates python3 \
+# Require the fixes for CVE-2026-77214 and CVE-2026-115557, even with cached base layers.
+RUN apk add --no-cache ca-certificates 'python3>=3.14.10-r0' 'libexpat>=2.9.0-r0' \
  && apk upgrade --no-cache
 
 # Copy binaries from build stage
