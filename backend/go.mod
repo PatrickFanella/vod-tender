@@ -2,7 +2,7 @@ module github.com/onnwee/vod-tender/backend
 
 go 1.26.0
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/gempir/go-twitch-irc/v4 v4.2.0
